@@ -3,6 +3,7 @@ import threading
 import json
 import os
 import sys
+import msvcrt
 
 # Configurações do servidor
 SERVER_HOST = '127.0.0.1'
@@ -34,6 +35,10 @@ def authenticate(client_socket):
 
     if ' ' in username:
         client_socket.send("O nome de usuário não pode conter espaços.".encode('utf-8'))
+        return None
+
+    if username in clients:
+        client_socket.send("Este nome de usuário já está conectado.".encode('utf-8'))
         return None
 
     if username in clients_data:
@@ -233,7 +238,6 @@ def start_server():
             threading.Thread(target=handle_client, args=(client_socket, client_address)).start()
     
     def wait_for_esc():
-        import msvcrt
         while True:
             if msvcrt.kbhit():
                 key = msvcrt.getch()
