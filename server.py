@@ -154,9 +154,17 @@ def offer_room_options(client_socket):
             if room_name in rooms:
                 client_socket.send(encrypt_message("Sala já existe. Tente outro nome.", shared_key))
             else:
-                rooms[room_name] = {'admin': client_socket, 'clients': [client_socket]}
+                client_socket.send(encrypt_message("Digite uma senha para a sala ou deixe em branco para uma sala pública: ", shared_key))
+                room_password = decrypt_message(client_socket.recv(1024), shared_key).decode('utf-8').strip()
+                
+                if room_password:
+                    rooms[room_name] = {'admin': client_socket, 'clients': [client_socket], 'password': room_password}
+                    client_socket.send(encrypt_message(f"Sala privada '{room_name}' criada e você é o administrador.", shared_key))
+                else:
+                    rooms[room_name] = {'admin': client_socket, 'clients': [client_socket], 'password': None}
+                    client_socket.send(encrypt_message(f"Sala pública '{room_name}' criada e você é o administrador.", shared_key))
+                
                 clients[client_socket]['room'] = room_name
-                client_socket.send(encrypt_message(f"Sala '{room_name}' criada e você é o administrador.", shared_key))
                 break
 
         elif choice == '2':
@@ -167,10 +175,22 @@ def offer_room_options(client_socket):
                 try:
                     room_index = int(decrypt_message(client_socket.recv(1024), shared_key).decode('utf-8').strip()) - 1
                     room_name = list(rooms.keys())[room_index]
-                    rooms[room_name]['clients'].append(client_socket)
-                    clients[client_socket]['room'] = room_name
-                    client_socket.send(encrypt_message(f"Você entrou na sala '{room_name}'.", shared_key))
-                    break
+                    if rooms[room_name]['password']:
+                        client_socket.send(encrypt_message("Digite a senha da sala: ", shared_key))
+                        room_password = decrypt_message(client_socket.recv(1024), shared_key).decode('utf-8').strip()
+                        
+                        if room_password == rooms[room_name]['password']:
+                            rooms[room_name]['clients'].append(client_socket)
+                            clients[client_socket]['room'] = room_name
+                            client_socket.send(encrypt_message(f"Você entrou na sala privada '{room_name}'.", shared_key))
+                            break
+                        else:
+                            client_socket.send(encrypt_message("Senha incorreta. Tente novamente.", shared_key))
+                    else:
+                        rooms[room_name]['clients'].append(client_socket)
+                        clients[client_socket]['room'] = room_name
+                        client_socket.send(encrypt_message(f"Você entrou na sala pública '{room_name}'.", shared_key))
+                        break
                 except:
                     client_socket.send(encrypt_message("Índice inválido. Tente novamente.", shared_key))
             else:
